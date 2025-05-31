@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>구식챗 - 실시간 채팅</title>
+    <style>
+        /* 이전과 동일한 CSS 유지 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        body {
+            display: flex;
+            height: 100vh;
+            background-color: #36393f;
+            color: white;
+        }
+        
+        .sidebar {
+            width: 240px;
+            background-color: #202225;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        
+        .server-list {
+            margin-bottom: 20px;
+        }
+        
+        .server-item {
+            padding: 10px;
+            margin-bottom: 5px;
+            background-color: #2f3136;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .server-item:hover {
+            background-color: #3a3d44;
+        }
+        
+        .server-controls {
+            display: flex;
+        }
+        
+        .server-controls button {
+            background: none;
+            border: none;
+            color: #b9bbbe;
+            cursor: pointer;
+            margin-left: 5px;
+            font-size: 12px;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-header {
+            padding: 15px;
+            background-color: #2f3136;
+            border-bottom: 1px solid #292b2f;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: #36393f;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+        }
+        
+        .message-user {
+            font-weight: bold;
+            color: #fff;
+            margin-right: 10px;
+        }
+        
+        .message-time {
+            font-size: 12px;
+            color: #72767d;
+        }
+        
+        .message-content {
+            margin-top: 5px;
+        }
+        
+        .chat-input {
+            padding: 15px;
+            background-color: #40444b;
+        }
+        
+        .chat-input form {
+            display: flex;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+            background-color: #484c52;
+            color: white;
+        }
+        
+        .chat-input button {
+            margin-left: 10px;
+            padding: 10px 15px;
+            background-color: #5865f2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            background-color: #36393f;
+            text-align: center;
+        }
+        
+        .welcome-screen h1 {
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        
+        .welcome-buttons {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .welcome-buttons button {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .create-server {
+            background-color: #5865f2;
+            color: white;
+        }
+        
+        .join-server {
+            background-color: #4f545c;
+            color: white;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .modal-content {
+            background-color: #2f3136;
+            padding: 20px;
+            border-radius: 5px;
+            width: 400px;
+        }
+        
+        .modal-header {
+            margin-bottom: 20px;
+        }
+        
+        .modal-body {
+            margin-bottom: 20px;
+        }
+        
+        .modal-body input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #484c52;
+            border: none;
+            border-radius: 5px;
+            color: white;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+        }
+        
+        .modal-footer button {
+            padding: 8px 15px;
+            margin-left: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .modal-cancel {
+            background-color: #4f545c;
+            color: white;
+        }
+        
+        .modal-confirm {
+            background-color: #5865f2;
+            color: white;
+        }
+        
+        .footer {
+            padding: 10px;
+            text-align: center;
+            background-color: #2f3136;
+            color: #b9bbbe;
+            font-size: 12px;
+        }
+        
+        .invite-code {
+            font-weight: bold;
+            color: #5865f2;
+            margin-top: 10px;
+        }
+        
+        .connection-status {
+            position: fixed;
+            bottom: 40px;
+            left: 10px;
+            padding: 5px 10px;
+            background-color: #f04747;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        
+        .connected {
+            background-color: #43b581;
+        }
+    </style>
+</head>
+<body>
+    <!-- Welcome Screen -->
+    <div class="welcome-screen" id="welcomeScreen">
+        <h1>구식챗에 오신 것을 환영합니다</h1>
+        <div class="welcome-buttons">
+            <button class="create-server" onclick="showCreateServerModal()">서버 만들기</button>
+            <button class="join-server" onclick="showJoinServerModal()">서버 참여</button>
+        </div>
+    </div>
+
+    <!-- Main App (hidden initially) -->
+    <div id="mainApp" style="display: none; width: 100%;">
+        <div class="sidebar">
+            <h3>내 서버 목록</h3>
+            <div class="server-list" id="serverList">
+                <!-- Servers will be added here dynamically -->
+            </div>
+            <button onclick="showCreateServerModal()" style="width: 100%; padding: 10px; background-color: #5865f2; color: white; border: none; border-radius: 5px; cursor: pointer;">새 서버 만들기</button>
+        </div>
+        
+        <div class="main-content">
+            <div class="chat-header" id="chatHeader">
+                <!-- Server name will be displayed here -->
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <!-- Messages will be displayed here -->
+                <div class="message">
+                    <div class="message-info">
+                        <span class="message-user">시스템</span>
+                        <span class="message-time">지금</span>
+                    </div>
+                    <div class="message-content">채팅 서버에 오신 것을 환영합니다!</div>
+                </div>
+            </div>
+            
+            <div class="chat-input">
+                <form onsubmit="sendMessage(event)">
+                    <input type="text" id="messageInput" placeholder="메시지를 입력하세요..." autocomplete="off">
+                    <button type="submit">보내기</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Server Modal -->
+    <div class="modal" id="createServerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>서버 만들기</h2>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="serverName" placeholder="서버 이름">
+                <input type="text" id="userName" placeholder="당신의 이름">
+                <div id="inviteCodeDisplay" style="display: none;">
+                    <p>초대 코드:</p>
+                    <p class="invite-code" id="inviteCode"></p>
+                    <p>이 코드를 공유하여 다른 사람들을 초대하세요!</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-cancel" onclick="hideModal('createServerModal')">취소</button>
+                <button class="modal-confirm" onclick="createServer()">만들기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Join Server Modal -->
+    <div class="modal" id="joinServerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>서버 참여</h2>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="joinCode" placeholder="초대 코드 (4자리)">
+                <input type="text" id="joinUserName" placeholder="당신의 이름">
+            </div>
+            <div class="modal-footer">
+                <button class="modal-cancel" onclick="hideModal('joinServerModal')">취소</button>
+                <button class="modal-confirm" onclick="joinServer()">참여</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Server Modal -->
+    <div class="modal" id="editServerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>서버 설정</h2>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="editServerName" placeholder="서버 이름">
+            </div>
+            <div class="modal-footer">
+                <button class="modal-cancel" onclick="hideModal('editServerModal')">취소</button>
+                <button class="modal-confirm" onclick="updateServer()">저장</button>
+                <button class="modal-confirm" style="background-color: #f04747;" onclick="deleteServer()">서버 삭제</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Set Name Modal -->
+    <div class="modal" id="setNameModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>이름 설정</h2>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="setUserName" placeholder="당신의 이름">
+            </div>
+            <div class="modal-footer">
+                <button class="modal-confirm" onclick="setUserName()">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        개발: 김구식
+    </div>
+    
+    <div class="connection-status" id="connectionStatus">
+        연결 끊김
+    </div>
+
+    <script>
+        // WebSocket 연결
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const wsUrl = wsProtocol + window.location.host + '/ws';
+        let socket = new WebSocket(wsUrl);
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const reconnectDelay = 3000; // 3초
+        
+        // Global variables
+        let currentServer = null;
+        let userName = '';
+        let currentServerId = null;
+        let joinedRooms = new Set();
+        
+        // Initialize the app
+        function initApp() {
+            updateConnectionStatus();
+            
+            // Check if user has a name
+            if (!userName) {
+                showModal('setNameModal');
+                return;
+            }
+            
+            showWelcomeScreen();
+        }
+        
+        // WebSocket 이벤트 핸들러
+        socket.onopen = function() {
+            console.log('WebSocket connected');
+            reconnectAttempts = 0;
+            updateConnectionStatus();
+            
+            // 이름이 설정되어 있다면 서버에 알림
+            if (userName) {
+                socket.send(JSON.stringify({
+                    type: 'set_username',
+                    username: userName
+                }));
+            }
+        };
+        
+        socket.onclose = function() {
+            console.log('WebSocket disconnected');
+            updateConnectionStatus();
+            attemptReconnect();
+        };
+        
+        socket.onerror = function(error) {
+            console.error('WebSocket error:', error);
+            updateConnectionStatus();
+        };
+        
+        socket.onmessage = function(event) {
+            const message = JSON.parse(event.data);
+            handleServerMessage(message);
+        };
+        
+        function handleServerMessage(message) {
+            switch (message.type) {
+                case 'room_created':
+                    handleRoomCreated(message);
+                    break;
+                    
+                case 'room_joined':
+                    handleRoomJoined(message);
+                    break;
+                    
+                case 'chat_message':
+                    addMessageToChat(message);
+                    break;
+                    
+                case 'system_message':
+                    addSystemMessageToChat(message);
+                    break;
+                    
+                case 'room_updated':
+                    handleRoomUpdated(message);
+                    break;
+                    
+                case 'room_deleted':
+                    handleRoomDeleted(message);
+                    break;
+                    
+                case 'error':
+                    alert(message.message);
+                    break;
+            }
+        }
+        
+        function handleRoomCreated(message) {
+            // 서버 생성 성공 처리
+            document.getElementById('inviteCode').textContent = message.inviteCode;
+            document.getElementById('inviteCodeDisplay').style.display = 'block';
+            document.querySelector('#createServerModal .modal-confirm').style.display = 'none';
+            
+            // 방 정보 저장
+            currentServerId = message.roomId;
+            joinedRooms.add(message.roomId);
+            
+            // 메시지 표시
+            const chatMessagesElement = document.getElementById('chatMessages');
+            chatMessagesElement.innerHTML = '';
+            
+            message.messages.forEach(msg => {
+                addMessageToChat(msg);
+            });
+            
+            // UI 업데이트
+            document.getElementById('chatHeader').textContent = message.roomName;
+            
+            // 3초 후 모달 닫기
+            setTimeout(() => {
+                hideModal('createServerModal');
+                showMainApp();
+                addServerToList(message.roomId, message.roomName);
+            }, 3000);
+        }
+        
+        function handleRoomJoined(message) {
+            // 방 참여 성공 처리
+            currentServerId = message.roomId;
+            joinedRooms.add(message.roomId);
+            
+            // 메시지 표시
+            const chatMessagesElement = document.getElementById('chatMessages');
+            chatMessagesElement.innerHTML = '';
+            
+            message.messages.forEach(msg => {
+                if (msg.user === '시스템') {
+                    addSystemMessageToChat(msg);
+                } else {
+                    addMessageToChat(msg);
+                }
+            });
+            
+            // UI 업데이트
+            document.getElementById('chatHeader').textContent = message.roomName;
+            
+            hideModal('joinServerModal');
+            showMainApp();
+            addServerToList(message.roomId, message.roomName);
+        }
+        
+        function handleRoomUpdated(message) {
+            if (currentServerId === message.roomId) {
+                document.getElementById('chatHeader').textContent = message.roomName;
+            }
+            
+            // 서버 목록에서 이름 업데이트
+            const serverItems = document.querySelectorAll('.server-item');
+            serverItems.forEach(item => {
+                if (item.dataset.serverId === message.roomId) {
+                    item.firstChild.textContent = message.roomName;
+                }
+            });
+            
+            addSystemMessageToChat(message.systemMessage);
+            hideModal('editServerModal');
+        }
+        
+        function handleRoomDeleted(message) {
+            if (currentServerId === message.roomId) {
+                currentServerId = null;
+                
+                // 다른 방이 있으면 첫 번째 방으로 이동
+                if (joinedRooms.size > 0) {
+                    const firstRoomId = Array.from(joinedRooms)[0];
+                    joinServerById(firstRoomId);
+                } else {
+                    showWelcomeScreen();
+                }
+            }
+            
+            // 서버 목록에서 제거
+            const serverItem = document.querySelector(`.server-item[data-server-id="${message.roomId}"]`);
+            if (serverItem) {
+                serverItem.remove();
+            }
+            
+            joinedRooms.delete(message.roomId);
+            hideModal('editServerModal');
+        }
+        
+        function addMessageToChat(message) {
+            const chatMessagesElement = document.getElementById('chatMessages');
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message';
+            
+            const messageInfoElement = document.createElement('div');
+            messageInfoElement.className = 'message-info';
+            
+            const userElement = document.createElement('span');
+            userElement.className = 'message-user';
+            userElement.textContent = message.user;
+            
+            const timeElement = document.createElement('span');
+            timeElement.className = 'message-time';
+            timeElement.textContent = new Date(message.timestamp).toLocaleTimeString();
+            
+            const contentElement = document.createElement('div');
+            contentElement.className = 'message-content';
+            contentElement.textContent = message.content;
+            
+            messageInfoElement.appendChild(userElement);
+            messageInfoElement.appendChild(timeElement);
+            messageElement.appendChild(messageInfoElement);
+            messageElement.appendChild(contentElement);
+            chatMessagesElement.appendChild(messageElement);
+            
+            // 스크롤 아래로
+            chatMessagesElement.scrollTop = chatMessagesElement.scrollHeight;
+        }
+        
+        function addSystemMessageToChat(message) {
+            const chatMessagesElement = document.getElementById('chatMessages');
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message';
+            messageElement.style.color = '#43b581';
+            
+            const messageInfoElement = document.createElement('div');
+            messageInfoElement.className = 'message-info';
+            
+            const userElement = document.createElement('span');
+            userElement.className = 'message-user';
+            userElement.textContent = message.user;
+            
+            const timeElement = document.createElement('span');
+            timeElement.className = 'message-time';
+            timeElement.textContent = new Date(message.timestamp).toLocaleTimeString();
+            
+            const contentElement = document.createElement('div');
+            contentElement.className = 'message-content';
+            contentElement.textContent = message.content;
+            
+            messageInfoElement.appendChild(userElement);
+            messageInfoElement.appendChild(timeElement);
+            messageElement.appendChild(messageInfoElement);
+            messageElement.appendChild(contentElement);
+            chatMessagesElement.appendChild(messageElement);
+            
+            // 스크롤 아래로
+            chatMessagesElement.scrollTop = chatMessagesElement.scrollHeight;
+        }
+        
+        function updateConnectionStatus() {
+            const statusElement = document.getElementById('connectionStatus');
+            if (socket.readyState === WebSocket.OPEN) {
+                statusElement.textContent = '연결됨';
+                statusElement.classList.add('connected');
+                statusElement.classList.remove('disconnected');
+            } else {
+                statusElement.textContent = '연결 끊김';
+                statusElement.classList.add('disconnected');
+                statusElement.classList.remove('connected');
+            }
+        }
+        
+        function attemptReconnect() {
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                console.log(`재연결 시도 ${reconnectAttempts}/${maxReconnectAttempts}...`);
+                
+                setTimeout(() => {
+                    socket = new WebSocket(wsUrl);
+                    socket.onopen = function() {
+                        console.log('재연결 성공');
+                        reconnectAttempts = 0;
+                        updateConnectionStatus();
+                        
+                        // 이름 재설정
+                        if (userName) {
+                            socket.send(JSON.stringify({
+                                type: 'set_username',
+                                username: userName
+                            }));
+                        }
+                        
+                        // 현재 방 재참여
+                        if (currentServerId) {
+                            socket.send(JSON.stringify({
+                                type: 'join_room',
+                                roomId: currentServerId,
+                                username: userName
+                            }));
+                        }
+                    };
+                    
+                    // 기존 이벤트 핸들러 재설정
+                    socket.onclose = function() {
+                        console.log('WebSocket disconnected');
+                        updateConnectionStatus();
+                        attemptReconnect();
+                    };
+                    
+                    socket.onerror = function(error) {
+                        console.error('WebSocket error:', error);
+                        updateConnectionStatus();
+                    };
+                    
+                    socket.onmessage = function(event) {
+                        const message = JSON.parse(event.data);
+                        handleServerMessage(message);
+                    };
+                }, reconnectDelay);
+            } else {
+                console.log('최대 재연결 시도 횟수 도달');
+            }
+        }
+        
+        // Show welcome screen
+        function showWelcomeScreen() {
+            document.getElementById('welcomeScreen').style.display = 'flex';
+            document.getElementById('mainApp').style.display = 'none';
+        }
+        
+        // Show main app
+        function showMainApp() {
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'flex';
+        }
+        
+        // Show modal
+        function showModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+        
+        // Hide modal
+        function hideModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        // Show create server modal
+        function showCreateServerModal() {
+            document.getElementById('inviteCodeDisplay').style.display = 'none';
+            document.getElementById('serverName').value = '';
+            document.querySelector('#createServerModal .modal-confirm').style.display = 'block';
+            showModal('createServerModal');
+        }
+        
+        // Show join server modal
+        function showJoinServerModal() {
+            document.getElementById('joinCode').value = '';
+            showModal('joinServerModal');
+        }
+        
+        // Create a new server
+        function createServer() {
+            const serverName = document.getElementById('serverName').value.trim();
+            const userNameInput = document.getElementById('userName').value.trim();
+            
+            if (!serverName) {
+                alert('서버 이름을 입력해주세요.');
+                return;
+            }
+            
+            if (!userNameInput) {
+                alert('사용자 이름을 입력해주세요.');
+                return;
+            }
+            
+            // Set user name
+            userName = userNameInput;
+            
+            // WebSocket이 연결되어 있는지 확인
+            if (socket.readyState !== WebSocket.OPEN) {
+                alert('서버에 연결되지 않았습니다. 잠시 후 다시 시도해주세요.');
+                return;
+            }
+            
+            // 서버 생성 요청 전송
+            socket.send(JSON.stringify({
+                type: 'create_room',
+                roomName: serverName,
+                username: userName
+            }));
+        }
+        
+        // Join a server with invite code
+        function joinServer() {
+            const joinCode = document.getElementById('joinCode').value.trim();
+            const userNameInput = document.getElementById('joinUserName').value.trim();
+            
+            if (!joinCode || joinCode.length !== 4) {
+                alert('유효한 4자리 초대 코드를 입력해주세요.');
+                return;
+            }
+            
+            if (!userNameInput) {
+                alert('사용자 이름을 입력해주세요.');
+                return;
+            }
+            
+            // Set user name
+            userName = userNameInput;
+            
+            // WebSocket이 연결되어 있는지 확인
+            if (socket.readyState !== WebSocket.OPEN) {
+                alert('서버에 연결되지 않았습니다. 잠시 후 다시 시도해주세요.');
+                return;
+            }
+            
+            // 서버 참여 요청 전송
+            socket.send(JSON.stringify({
+                type: 'join_room',
+                roomId: joinCode,
+                username: userName
+            }));
+        }
+        
+        // Join server by ID
+        function joinServerById(serverId) {
+            if (socket.readyState !== WebSocket.OPEN) {
+                alert('서버에 연결되지 않았습니다. 잠시 후 다시 시도해주세요.');
+                return;
+            }
+            
+            socket.send(JSON.stringify({
+                type: 'join_room',
+                roomId: serverId,
+                username: userName
+            }));
+        }
+        
+        // Add server to sidebar list
+        function addServerToList(serverId, serverName) {
+            const serverListElement = document.getElementById('serverList');
+            
+            // 이미 추가되어 있는지 확인
+            if (document.querySelector(`.server-item[data-server-id="${serverId}"]`)) {
+                return;
+            }
+            
+            const serverElement = document.createElement('div');
+            serverElement.className = 'server-item';
+            serverElement.dataset.serverId = serverId;
+            serverElement.textContent = serverName;
+            serverElement.onclick = () => joinServerById(serverId);
+            
+            const controlsElement = document.createElement('div');
+            controlsElement.className = 'server-controls';
+            
+            const editButton = document.createElement('button');
+            editButton.innerHTML = '✏️';
+            editButton.onclick = (e) => {
+                e.stopPropagation();
+                showEditServerModal(serverId, serverName);
+            };
+            
+            const deleteButton = document.createElement('button');
+            deleteButton.innerHTML = '🗑️';
+            deleteButton.onclick = (e) => {
+                e.stopPropagation();
+                if (confirm('정말로 이 서버를 삭제하시겠습니까?')) {
+                    deleteServerById(serverId);
+                }
+            };
+            
+            controlsElement.appendChild(editButton);
+            controlsElement.appendChild(deleteButton);
+            serverElement.appendChild(controlsElement);
+            serverListElement.appendChild(serverElement);
+        }
+        
+        // Show edit server modal
+        function showEditServerModal(serverId, serverName) {
+            document.getElementById('editServerName').value = serverName;
+            currentServerId = serverId;
+            showModal('editServerModal');
+        }
+        
+        // Update server
+        function updateServer() {
+            const newName = document.getElementById('editServerName').value.trim();
+            
+            if (!newName) {
+                alert('서버 이름을 입력해주세요.');
+                return;
+            }
+            
+            if (socket.readyState !== WebSocket.OPEN) {
+                alert('서버에 연결되지 않았습니다. 잠시 후 다시 시도해주세요.');
+                return;
+            }
+            
+            socket.send(JSON.stringify({
+                type: 'edit_room_name',
+                roomId: currentServerId,
+                newName: newName
+            }));
+        }
+        
+        // Delete server
+        function deleteServer() {
+            if (confirm('정말로 이 서버를 삭제하시겠습니까? 모든 채팅 기록이 사라집니다.')) {
+                if (socket.readyState !== WebSocket.OPEN) {
+                    alert('서버에 연결되지 않았습니다. 잠시 후 다시 시도해주세요.');
+                    return;
+                }
+                
+                socket.send(JSON.stringify({
+                    type: 'delete_room',
+                    roomId: currentServerId
+                }));
+            }
+        }
+        
+        // Delete server by ID
+        function deleteServerById(serverId) {
+            if (socket.readyState !== WebSocket.OPEN) {
+                alert('서버에 연결되지 않았습니다. 잠시 후 다시 시도해주세요.');
+                return;
+            }
+            
+            socket.send(JSON.stringify({
+                type: 'delete_room',
+                roomId: serverId
+            }));
+        }
+        
+        // Send message
+        function sendMessage(event) {
+            event.preventDefault();
+            
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message) return;
+            
+            if (!currentServerId) {
+                alert('서버에 참여해주세요.');
+                return;
+            }
+            
+            if (socket.readyState !== WebSocket.OPEN) {
+                alert('서버에 연결되지 않았습니다. 잠시 후 다시 시도해주세요.');
+                return;
+            }
+            
+            // 메시지 전송
+            socket.send(JSON.stringify({
+                type: 'chat_message',
+                roomId: currentServerId,
+                content: message
+            }));
+            
+            // 입력 필드 비우기
+            messageInput.value = '';
+        }
+        
+        // Set user name
+        function setUserName() {
+            const nameInput = document.getElementById('setUserName').value.trim();
+            
+            if (!nameInput) {
+                alert('이름을 입력해주세요.');
+                return;
+            }
+            
+            userName = nameInput;
+            hideModal('setNameModal');
+            
+            // WebSocket이 연결되어 있다면 이름 설정
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    type: 'set_username',
+                    username: userName
+                }));
+            }
+            
+            // 앱 초기화 계속 진행
+            initApp();
+        }
+        
+        // Initialize the app when loaded
+        window.onload = function() {
+            // Check if WiFi is connected
+            if (!navigator.onLine) {
+                alert('인터넷에 연결되어 있지 않습니다. 연결 후 다시 시도해주세요.');
+                return;
+            }
+            
+            initApp();
+        };
+        
+        // Handle Enter key in message input
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage(e);
+            }
+        });
+    </script>
+</body>
+</html>
